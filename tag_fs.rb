@@ -66,8 +66,7 @@ class TagFs
         @tag_reader.match(path + entry, tag)
       end.map(&:to_s)
     else
-      # TODO: show all tags
-      %w()
+      @tag_reader.tags_children(@base).keys
     end
   rescue InvalidPath
     nil
