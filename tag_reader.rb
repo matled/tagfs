@@ -11,7 +11,7 @@ class TagReader
       (path + ".tags").open do |fh|
         fh.each do |line|
           line.chomp!
-          case line.chomp
+          case line
           when /\A-/
             tags[line[1..-1]] = false
           when /\A\+/
@@ -34,23 +34,47 @@ class TagReader
     tags
   end
 
-  def tag_match(path, tag_spec)
-    tags = tags_parents(path)
-
-    if tag_spec.all? { |k,v| tags[k] == :both || !!tags[k] == v }
-      # TODO: this will also return true if all entries are subdirectories that
-      # do not match and no file exists
-      return true
+  def merge_child_tags(hash, tags)
+    tags.each do |k,v|
+      next if hash[k] == :both
+      if tags[k] != hash[k]
+        hash[k] = :both
+      else
+        hash[k] = v
+      end
     end
+    hash
+  end
 
+  def tags_children(path)
     begin
+      path = path.dirname if path.file?
       entries = path.entries
     rescue Errno::ENOENT, Errno::EISDIR, Errno::ENOTDIR, Errno::EACCES
-      return false
+      return {}
+    end
+    entries.reject! { |entry| %w(. ..).include?(entry.to_s) }
+    entries = entries.select do |entry|
+      begin
+        (path + entry).directory?
+      rescue Errno::ENOENT, Errno::EISDIR, Errno::ENOTDIR, Errno::EACCES
+        false
+      end
     end
 
-    entries.reject! { |e| %w(. ..).include?(e.to_s) }
-    entries.any? { |entry| tag_match(path + entry, tag_spec) }
+    tags = tags_parents(path)
+
+    entries.map do |entry|
+      merge_child_tags(tags, tags_children(path + entry))
+    end
+    tags
+  end
+
+  def tag_match(path, tag_spec)
+    tags = tags_children(path)
+    tag_spec.all? do |k, v|
+      tags[k] == :both || !!tags[k] == v
+    end
   end
 
   def match(path, tag_spec)
@@ -61,9 +85,10 @@ class TagReader
 
   def clear_cache
     @cache = Hash.new { |h,v| h[v] = {} }
+    nil
   end
 
-  [:tags_parents].each do |sym|
+  [:tags_children, :tags_parents].each do |sym|
     alias :"_#{sym}" :"#{sym}"
     class_eval <<-S
       def #{sym}(path)
