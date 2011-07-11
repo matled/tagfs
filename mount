@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+require 'pathname'
+require './fuse'
+require './tag_reader'
+require './tag_fs'
+
+if $0 == __FILE__
+  Fuse.obj = TagFs.new(ARGV.shift)
+  exit Fuse.main($0, '-f', '-s', ARGV.shift)
+end

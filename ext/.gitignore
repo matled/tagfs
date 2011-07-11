@@ -1,0 +1,3 @@
+Makefile
+fuse.o
+fuse.so
