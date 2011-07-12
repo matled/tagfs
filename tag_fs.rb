@@ -61,7 +61,7 @@ class TagFs
       rescue Errno::ENOENT, Errno::EISDIR, Errno::ENOTDIR, Errno::EACCES
         return nil
       end
-      entries.reject! { |e| %w(. ..).include?(e) }
+      entries.reject! { |e| %w(. ..).include?(e.to_s) }
       entries.select do |entry|
         @tag_reader.match(path + entry, tag)
       end.map(&:to_s)
